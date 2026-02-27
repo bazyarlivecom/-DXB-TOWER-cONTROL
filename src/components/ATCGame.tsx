@@ -479,34 +479,67 @@ export default function ATCGame() {
 
   return (
     <div className="flex gap-6 w-full max-w-[1400px] mx-auto h-[800px]">
-      {/* Left Panel - Arriving Flights */}
-      <div className="w-64 bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-xl overflow-y-auto flex flex-col gap-2">
-        <h2 className="text-xl font-bold text-blue-400 mb-2 sticky top-0 bg-slate-800 pb-2 border-b border-slate-700">
-          Incoming Flights
-        </h2>
-        {gameState.planes.filter(p => !p.ilsEnabled && p.status === 'flying').length === 0 ? (
-          <div className="text-slate-500 text-sm text-center mt-4">No incoming flights</div>
-        ) : (
-          gameState.planes
-            .filter(p => !p.ilsEnabled && p.status === 'flying')
-            .sort((a, b) => b.altitude - a.altitude)
-            .map(p => (
-              <div 
-                key={p.id} 
-                onClick={() => setSelectedPlaneId(p.id)}
-                className={`p-3 rounded-lg border cursor-pointer transition-colors ${selectedPlaneId === p.id ? 'bg-blue-900/50 border-blue-500' : p.warning ? 'bg-red-900/30 border-red-500/50' : 'bg-slate-700/50 border-slate-600 hover:bg-slate-700'}`}
-              >
-                <div className="flex justify-between items-center mb-1">
-                  <span className="font-bold text-white">{p.callsign}</span>
-                  <span className="text-xs text-slate-400">{Math.round(p.heading)}°</span>
+      {/* Left Panel - Flight Lists */}
+      <div className="w-72 bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-xl overflow-y-auto flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
+          <h2 className="text-xl font-bold text-blue-400 mb-2 sticky top-0 bg-slate-800 pb-2 border-b border-slate-700">
+            Incoming Flights
+          </h2>
+          {gameState.planes.filter(p => !p.ilsEnabled && p.status === 'flying').length === 0 ? (
+            <div className="text-slate-500 text-sm text-center mt-4">No incoming flights</div>
+          ) : (
+            gameState.planes
+              .filter(p => !p.ilsEnabled && p.status === 'flying')
+              .sort((a, b) => b.altitude - a.altitude)
+              .map(p => (
+                <div 
+                  key={p.id} 
+                  onClick={() => setSelectedPlaneId(p.id)}
+                  className={`p-3 rounded-lg border cursor-pointer transition-colors ${selectedPlaneId === p.id ? 'bg-blue-900/50 border-blue-500' : p.warning ? 'bg-red-900/30 border-red-500/50' : 'bg-slate-700/50 border-slate-600 hover:bg-slate-700'}`}
+                >
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="font-bold text-white">{p.callsign}</span>
+                    <span className="text-xs text-slate-400">{Math.round(p.heading)}°</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-slate-300 font-mono">
+                    <span>{Math.round(p.altitude)} ft</span>
+                    <span>{Math.round(p.speed)} kts</span>
+                  </div>
                 </div>
-                <div className="flex justify-between text-xs text-slate-300 font-mono">
-                  <span>{Math.round(p.altitude)} ft</span>
-                  <span>{Math.round(p.speed)} kts</span>
+              ))
+          )}
+        </div>
+
+        <div className="flex flex-col gap-2 border-t border-slate-700 pt-4">
+          <h2 className="text-xl font-bold text-emerald-400 mb-2 sticky top-0 bg-slate-800 pb-2 border-b border-slate-700">
+            Approach Queue (ILS)
+          </h2>
+          {gameState.planes.filter(p => p.ilsEnabled || p.status === 'landing' || p.status === 'landed').length === 0 ? (
+            <div className="text-slate-500 text-sm text-center mt-4">No flights in approach queue</div>
+          ) : (
+            gameState.planes
+              .filter(p => p.ilsEnabled || p.status === 'landing' || p.status === 'landed')
+              .sort((a, b) => a.altitude - b.altitude) // Lower altitude = closer to landing
+              .map(p => (
+                <div 
+                  key={p.id} 
+                  onClick={() => setSelectedPlaneId(p.id)}
+                  className={`p-3 rounded-lg border mb-2 cursor-pointer transition-colors ${selectedPlaneId === p.id ? 'bg-emerald-900/50 border-emerald-500' : p.status === 'landed' ? 'bg-emerald-900/20 border-emerald-500/30' : p.status === 'landing' ? 'bg-amber-900/30 border-amber-500/50' : 'bg-slate-700/50 border-slate-600 hover:bg-slate-700'}`}
+                >
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="font-bold text-white">{p.callsign}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded ${p.status === 'landed' ? 'bg-emerald-500 text-white' : p.status === 'landing' ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                      {p.status === 'landed' ? 'Landed' : p.status === 'landing' ? 'Landing' : 'Approach'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs text-slate-300 font-mono">
+                    <span>{Math.round(p.altitude)} ft</span>
+                    <span>{Math.round(p.speed)} kts</span>
+                  </div>
                 </div>
-              </div>
-            ))
-        )}
+              ))
+          )}
+        </div>
       </div>
 
       <div className="relative flex-1 flex justify-center items-center">
@@ -552,7 +585,7 @@ export default function ATCGame() {
         )}
       </div>
 
-      {/* Right Panel - Approach & Control */}
+      {/* Right Panel - Control & Settings */}
       <div className="w-80 flex flex-col gap-4 h-full">
         {/* Selected Plane Controls */}
         <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-xl shrink-0">
@@ -654,38 +687,7 @@ export default function ATCGame() {
           )}
         </div>
 
-        <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-xl flex-1 overflow-y-auto">
-          <h2 className="text-xl font-bold text-emerald-400 mb-2 sticky top-0 bg-slate-800 pb-2 border-b border-slate-700">
-            Approach Queue (ILS)
-          </h2>
-          {gameState.planes.filter(p => p.ilsEnabled || p.status === 'landing' || p.status === 'landed').length === 0 ? (
-            <div className="text-slate-500 text-sm text-center mt-4">No flights in approach queue</div>
-          ) : (
-            gameState.planes
-              .filter(p => p.ilsEnabled || p.status === 'landing' || p.status === 'landed')
-              .sort((a, b) => a.altitude - b.altitude) // Lower altitude = closer to landing
-              .map(p => (
-                <div 
-                  key={p.id} 
-                  onClick={() => setSelectedPlaneId(p.id)}
-                  className={`p-3 rounded-lg border mb-2 cursor-pointer transition-colors ${selectedPlaneId === p.id ? 'bg-emerald-900/50 border-emerald-500' : p.status === 'landed' ? 'bg-emerald-900/20 border-emerald-500/30' : p.status === 'landing' ? 'bg-amber-900/30 border-amber-500/50' : 'bg-slate-700/50 border-slate-600 hover:bg-slate-700'}`}
-                >
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="font-bold text-white">{p.callsign}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded ${p.status === 'landed' ? 'bg-emerald-500 text-white' : p.status === 'landing' ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
-                      {p.status === 'landed' ? 'Landed' : p.status === 'landing' ? 'Landing' : 'Approach'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-xs text-slate-300 font-mono">
-                    <span>{Math.round(p.altitude)} ft</span>
-                    <span>{Math.round(p.speed)} kts</span>
-                  </div>
-                </div>
-              ))
-          )}
-        </div>
-
-        <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-xl shrink-0">
+        <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-xl flex-1 overflow-y-auto flex flex-col gap-4">
           <div className="flex justify-between items-center text-sm mb-2">
             <span className="text-slate-300">Score:</span>
             <span className="font-bold text-white text-lg">{gameState.score}</span>
