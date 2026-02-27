@@ -1,0 +1,5 @@
+{
+  "name": "DXB Air Traffic Control",
+  "description": "A game to manage incoming flights to Dubai airport.",
+  "requestFramePermissions": []
+}
