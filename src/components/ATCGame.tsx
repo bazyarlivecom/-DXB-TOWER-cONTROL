@@ -7,13 +7,44 @@ export default function ATCGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [gameSpeed, setGameSpeed] = useState<number>(1);
   const [trafficRate, setTrafficRate] = useState<number>(1);
-  const [gameState, setGameState] = useState<GameState>({
-    planes: [],
-    score: 0,
-    gameOver: false,
-    message: "",
-    spawnTimer: 2,
+  const [gameState, setGameState] = useState<GameState>(() => {
+    const saved = localStorage.getItem('atc_records');
+    const records = saved ? JSON.parse(saved) : { highScore: 0, history: [] };
+    return {
+      planes: [],
+      score: 0,
+      planesLanded: 0,
+      gameOver: false,
+      message: "",
+      spawnTimer: 2,
+      highScore: records.highScore,
+      history: records.history,
+      maxPlanes: 10,
+    };
   });
+
+  useEffect(() => {
+    if (gameState.gameOver) {
+      const newRecord = {
+        score: gameState.score,
+        date: new Date().toLocaleString(),
+        planesLanded: gameState.planesLanded,
+      };
+      const newHistory = [newRecord, ...gameState.history].slice(0, 10);
+      const newHighScore = Math.max(gameState.highScore, gameState.score);
+      
+      localStorage.setItem('atc_records', JSON.stringify({
+        highScore: newHighScore,
+        history: newHistory
+      }));
+
+      setGameState(prev => ({
+        ...prev,
+        highScore: newHighScore,
+        history: newHistory
+      }));
+    }
+  }, [gameState.gameOver]);
   const [selectedPlaneId, setSelectedPlaneId] = useState<string | null>(null);
   const selectedPlaneIdRef = useRef(selectedPlaneId);
   selectedPlaneIdRef.current = selectedPlaneId;
@@ -271,6 +302,23 @@ export default function ATCGame() {
         ctx.fill();
       }
 
+      // Draw holding orbit
+      if (p.holdingPoint) {
+        ctx.strokeStyle = isSelected ? "#fbbf24" : "rgba(251, 191, 36, 0.4)";
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([2, 4]);
+        ctx.beginPath();
+        ctx.arc(p.holdingPoint.x, p.holdingPoint.y, 60, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        // Draw center dot
+        ctx.fillStyle = isSelected ? "#fbbf24" : "rgba(251, 191, 36, 0.4)";
+        ctx.beginPath();
+        ctx.arc(p.holdingPoint.x, p.holdingPoint.y, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
       ctx.save();
       ctx.translate(p.x, p.y);
       ctx.rotate((p.heading * Math.PI) / 180);
@@ -498,7 +546,12 @@ export default function ATCGame() {
                   className={`p-3 rounded-lg border cursor-pointer transition-colors ${selectedPlaneId === p.id ? 'bg-blue-900/50 border-blue-500' : p.warning ? 'bg-red-900/30 border-red-500/50' : 'bg-slate-700/50 border-slate-600 hover:bg-slate-700'}`}
                 >
                   <div className="flex justify-between items-center mb-1">
-                    <span className="font-bold text-white">{p.callsign}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-white">{p.callsign}</span>
+                      {p.holdingPoint && (
+                        <span className="text-[9px] bg-amber-500/20 text-amber-400 px-1 rounded border border-amber-500/30 animate-pulse">HOLD</span>
+                      )}
+                    </div>
                     <span className="text-xs text-slate-400">{Math.round(p.heading)}°</span>
                   </div>
                   <div className="flex justify-between text-xs text-slate-300 font-mono">
@@ -568,13 +621,15 @@ export default function ATCGame() {
             <p className="text-xl text-white mb-6">{gameState.message}</p>
             <button
               onClick={() => {
-                setGameState({
+                setGameState(prev => ({
+                  ...prev,
                   planes: [],
                   score: 0,
+                  planesLanded: 0,
                   gameOver: false,
                   message: "",
                   spawnTimer: 2,
-                });
+                }));
                 setSelectedPlaneId(null);
               }}
               className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-lg transition-colors"
@@ -688,9 +743,13 @@ export default function ATCGame() {
         </div>
 
         <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-xl flex-1 overflow-y-auto flex flex-col gap-4">
-          <div className="flex justify-between items-center text-sm mb-2">
+          <div className="flex justify-between items-center text-sm">
             <span className="text-slate-300">Score:</span>
             <span className="font-bold text-white text-lg">{gameState.score}</span>
+          </div>
+          <div className="flex justify-between items-center text-sm border-t border-slate-700 pt-2">
+            <span className="text-slate-300">High Score:</span>
+            <span className="font-bold text-amber-400 text-lg">{gameState.highScore}</span>
           </div>
           
           <div className="border-t border-slate-700 pt-3">
@@ -716,6 +775,53 @@ export default function ATCGame() {
               <button onClick={() => setTrafficRate(0.5)} className={`flex-1 py-1.5 rounded text-xs font-bold transition-colors ${trafficRate === 0.5 ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>Low</button>
               <button onClick={() => setTrafficRate(1)} className={`flex-1 py-1.5 rounded text-xs font-bold transition-colors ${trafficRate === 1 ? 'bg-amber-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>Medium</button>
               <button onClick={() => setTrafficRate(2)} className={`flex-1 py-1.5 rounded text-xs font-bold transition-colors ${trafficRate === 2 ? 'bg-red-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>High</button>
+            </div>
+          </div>
+          <div className="border-t border-slate-700 pt-3 mt-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-slate-300 text-sm">Max Planes:</span>
+              <span className="font-bold text-white text-sm">{gameState.maxPlanes}</span>
+            </div>
+            <input 
+              type="range" 
+              min="2" max="20" step="1" 
+              value={gameState.maxPlanes}
+              onChange={(e) => setGameState(prev => ({ ...prev, maxPlanes: Number(e.target.value) }))}
+              className="w-full accent-blue-500 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+            />
+          </div>
+
+          <div className="border-t border-slate-700 pt-3 mt-3">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-xs font-bold text-slate-400 uppercase">History</h3>
+              <button 
+                onClick={() => {
+                  if (confirm('Clear all game records?')) {
+                    localStorage.removeItem('atc_records');
+                    setGameState(prev => ({ ...prev, highScore: 0, history: [] }));
+                  }
+                }}
+                className="text-[10px] text-red-400 hover:text-red-300"
+              >
+                Clear
+              </button>
+            </div>
+            <div className="flex flex-col gap-1 max-h-32 overflow-y-auto">
+              {gameState.history.length === 0 ? (
+                <span className="text-[10px] text-slate-600 italic">No records yet</span>
+              ) : (
+                gameState.history.map((record, idx) => (
+                  <div key={idx} className="flex flex-col gap-0.5 bg-slate-900/50 p-1.5 rounded border border-slate-700/30">
+                    <div className="flex justify-between text-[10px]">
+                      <span className="text-slate-500">{record.date}</span>
+                      <span className="font-bold text-amber-400">{record.score} pts</span>
+                    </div>
+                    <div className="text-[9px] text-slate-400">
+                      Landed: <span className="text-emerald-400">{record.planesLanded}</span> planes
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

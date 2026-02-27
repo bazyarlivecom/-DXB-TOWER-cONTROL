@@ -14,12 +14,23 @@ export interface Plane {
   waypoints: { x: number; y: number }[];
   ilsEnabled: boolean;
   warning: boolean;
+  holdingPoint?: { x: number; y: number } | null;
+}
+
+export interface GameRecord {
+  score: number;
+  date: string;
+  planesLanded: number;
 }
 
 export interface GameState {
   planes: Plane[];
   score: number;
+  planesLanded: number;
   gameOver: boolean;
   message: string;
   spawnTimer: number;
+  highScore: number;
+  history: GameRecord[];
+  maxPlanes: number;
 }

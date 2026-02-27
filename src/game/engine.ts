@@ -120,7 +120,7 @@ export function updateGame(state: GameState, dt: number, trafficRate: number = 1
   newState.planes = newState.planes.map((p) => ({ ...p, trail: [...p.trail], waypoints: p.waypoints ? [...p.waypoints] : [] }));
 
   newState.spawnTimer -= dt * trafficRate;
-  if (newState.spawnTimer <= 0) {
+  if (newState.spawnTimer <= 0 && newState.planes.length < newState.maxPlanes) {
     newState.planes.push(spawnPlane());
     newState.spawnTimer = 25 + Math.random() * 20;
   }
@@ -144,8 +144,13 @@ export function updateGame(state: GameState, dt: number, trafficRate: number = 1
       const dx = wp.x - p.x;
       const dy = wp.y - p.y;
       const dist = Math.hypot(dx, dy);
-      // Increase acceptance radius so fast planes don't orbit waypoints
+      
       if (dist < 25) {
+        // Check if this waypoint is a HOLD point
+        const isHoldPoint = Object.values(PATTERN.HOLD).some(h => h.x === wp.x && h.y === wp.y);
+        if (isHoldPoint && p.waypoints.length === 1) {
+          p.holdingPoint = { x: wp.x, y: wp.y };
+        }
         p.waypoints.shift();
       } else {
         let angle = (Math.atan2(dy, dx) * 180) / Math.PI;
@@ -154,6 +159,35 @@ export function updateGame(state: GameState, dt: number, trafficRate: number = 1
         if (angle >= 360) angle -= 360;
         p.targetHeading = angle;
       }
+    }
+
+    // Holding orbit logic
+    if (p.holdingPoint && (!p.waypoints || p.waypoints.length === 0)) {
+      const dx = p.x - p.holdingPoint.x;
+      const dy = p.y - p.holdingPoint.y;
+      const dist = Math.hypot(dx, dy);
+      const orbitRadius = 60; // Slightly larger orbit for visibility
+      
+      // Current heading from center to plane in engine units
+      let angleFromCenter = (Math.atan2(dy, dx) * 180 / Math.PI) + 90;
+      
+      // We want to fly perpendicular to the radius (clockwise)
+      // And slightly inward if we are too far, outward if too close
+      const distError = dist - orbitRadius;
+      const correctionAngle = Math.max(-45, Math.min(45, distError * 2)); // Max 45 degree correction
+      
+      let targetHeading = angleFromCenter + 90 + correctionAngle;
+      
+      // Normalize
+      while (targetHeading < 0) targetHeading += 360;
+      while (targetHeading >= 360) targetHeading -= 360;
+      
+      p.targetHeading = targetHeading;
+      // Slow down slightly while holding
+      p.targetSpeed = Math.min(p.targetSpeed, 200);
+    } else if (p.waypoints && p.waypoints.length > 0) {
+      // If we have new waypoints, stop holding
+      p.holdingPoint = null;
     }
 
     if (p.heading !== p.targetHeading) {
@@ -288,6 +322,7 @@ export function updateGame(state: GameState, dt: number, trafficRate: number = 1
         p.targetSpeed = 0;
         p.waypoints = [];
         newState.score += 100;
+        newState.planesLanded += 1;
       }
     }
 

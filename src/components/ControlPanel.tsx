@@ -37,10 +37,12 @@ export default function ControlPanel({ plane, onCommand }: Props) {
           className={`px-3 py-1 rounded-full text-sm font-bold ${
             plane.status === "landing"
               ? "bg-emerald-500/20 text-emerald-400"
+              : plane.holdingPoint
+              ? "bg-amber-500/20 text-amber-400"
               : "bg-blue-500/20 text-blue-400"
           }`}
         >
-          {plane.status === "landing" ? "Landing" : "Flying"}
+          {plane.status === "landing" ? "Landing" : plane.holdingPoint ? "Holding" : "Flying"}
         </span>
       </div>
 
