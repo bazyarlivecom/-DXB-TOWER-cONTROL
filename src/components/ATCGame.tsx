@@ -503,6 +503,25 @@ export default function ATCGame() {
   };
 
   const handleMouseUp = () => {
+    if (drawingPlaneIdRef.current) {
+      setGameState(prev => {
+        const newState = { ...prev, planes: [...prev.planes] };
+        const planeIndex = newState.planes.findIndex(p => p.id === drawingPlaneIdRef.current);
+        if (planeIndex !== -1) {
+          const plane = { ...newState.planes[planeIndex] };
+          if (plane.waypoints && plane.waypoints.length > 0) {
+            const lastWp = plane.waypoints[plane.waypoints.length - 1];
+            const holdPoint = Object.values(PATTERN.HOLD).find(h => Math.hypot(h.x - lastWp.x, h.y - lastWp.y) < 50);
+            if (holdPoint) {
+              // Snap last waypoint to exact hold point
+              plane.waypoints[plane.waypoints.length - 1] = { x: holdPoint.x, y: holdPoint.y };
+              newState.planes[planeIndex] = plane;
+            }
+          }
+        }
+        return newState;
+      });
+    }
     drawingPlaneIdRef.current = null;
     isDraggingRef.current = false;
     isPanningRef.current = false;

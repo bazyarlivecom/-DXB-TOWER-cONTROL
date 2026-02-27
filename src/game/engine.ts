@@ -145,11 +145,12 @@ export function updateGame(state: GameState, dt: number, trafficRate: number = 1
       const dy = wp.y - p.y;
       const dist = Math.hypot(dx, dy);
       
-      if (dist < 25) {
-        // Check if this waypoint is a HOLD point
-        const isHoldPoint = Object.values(PATTERN.HOLD).some(h => h.x === wp.x && h.y === wp.y);
-        if (isHoldPoint && p.waypoints.length === 1) {
-          p.holdingPoint = { x: wp.x, y: wp.y };
+      // More forgiving threshold for reaching waypoints
+      if (dist < 40) {
+        // Check if this waypoint is near a HOLD point
+        const holdPoint = Object.values(PATTERN.HOLD).find(h => Math.hypot(h.x - wp.x, h.y - wp.y) < 50);
+        if (holdPoint && p.waypoints.length === 1) {
+          p.holdingPoint = { x: holdPoint.x, y: holdPoint.y };
         }
         p.waypoints.shift();
       } else {
@@ -158,6 +159,14 @@ export function updateGame(state: GameState, dt: number, trafficRate: number = 1
         if (angle < 0) angle += 360;
         if (angle >= 360) angle -= 360;
         p.targetHeading = angle;
+      }
+    }
+
+    // Auto-hold if near a hold point and no instructions
+    if (!p.holdingPoint && (!p.waypoints || p.waypoints.length === 0) && p.status === 'flying') {
+      const holdPoint = Object.values(PATTERN.HOLD).find(h => Math.hypot(h.x - p.x, h.y - p.y) < 60);
+      if (holdPoint) {
+        p.holdingPoint = { x: holdPoint.x, y: holdPoint.y };
       }
     }
 
@@ -174,7 +183,7 @@ export function updateGame(state: GameState, dt: number, trafficRate: number = 1
       // We want to fly perpendicular to the radius (clockwise)
       // And slightly inward if we are too far, outward if too close
       const distError = dist - orbitRadius;
-      const correctionAngle = Math.max(-45, Math.min(45, distError * 2)); // Max 45 degree correction
+      const correctionAngle = Math.max(-60, Math.min(60, distError * 3)); // Max 60 degree correction
       
       let targetHeading = angleFromCenter + 90 + correctionAngle;
       
@@ -183,8 +192,8 @@ export function updateGame(state: GameState, dt: number, trafficRate: number = 1
       while (targetHeading >= 360) targetHeading -= 360;
       
       p.targetHeading = targetHeading;
-      // Slow down slightly while holding
-      p.targetSpeed = Math.min(p.targetSpeed, 200);
+      // Slow down while holding for better stability
+      p.targetSpeed = Math.min(p.targetSpeed, 180);
     } else if (p.waypoints && p.waypoints.length > 0) {
       // If we have new waypoints, stop holding
       p.holdingPoint = null;
